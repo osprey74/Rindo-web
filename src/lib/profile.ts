@@ -20,6 +20,6 @@ export async function getProfile(): Promise<UserProfile> {
 export async function saveProfile(payload: ProfilePayload): Promise<UserProfile> {
   return apiRequest<UserProfile>('/api/profile', {
     method: 'PUT',
-    body: JSON.stringify(payload),
+    body: payload,
   })
 }
