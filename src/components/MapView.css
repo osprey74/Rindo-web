@@ -1,0 +1,52 @@
+.map-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.map-status {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  color: var(--text-h);
+  z-index: 1;
+  max-width: calc(100% - 24px);
+}
+
+.map-status-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-status-reset {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--code-bg);
+  color: var(--text-h);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.map-status-reset:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+.map-status-reset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
