@@ -73,3 +73,28 @@
   height: 120px;
   padding: 4px 0;
 }
+
+@media (max-width: 768px) {
+  .elev-panel {
+    bottom: 24px;
+    width: calc(100% - 16px);
+  }
+
+  .elev-stats {
+    padding: 6px 10px;
+    gap: 10px;
+    font-size: 12px;
+  }
+
+  .elev-stat-label {
+    font-size: 10px;
+  }
+
+  .elev-stat-value {
+    font-size: 12px;
+  }
+
+  .elev-chart {
+    height: 100px;
+  }
+}

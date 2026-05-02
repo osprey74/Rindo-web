@@ -130,3 +130,24 @@
 .weather-meta-item {
   white-space: nowrap;
 }
+
+@media (max-width: 768px) {
+  .weather-card {
+    width: 180px;
+    top: 8px;
+    left: 8px;
+    font-size: 11px;
+  }
+
+  .weather-area {
+    font-size: 12px;
+  }
+
+  .weather-day {
+    padding: 6px 8px;
+  }
+
+  .weather-day-text {
+    font-size: 10px;
+  }
+}

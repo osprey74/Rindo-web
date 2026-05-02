@@ -64,6 +64,27 @@
   font-weight: 500;
 }
 
+@media (max-width: 768px) {
+  .map-status {
+    top: 8px;
+    padding: 6px 10px;
+    gap: 8px;
+    font-size: 12px;
+    max-width: calc(100% - 16px);
+  }
+
+  .map-status-text {
+    font-size: 12px;
+  }
+
+  .map-status-reset,
+  .map-status-export,
+  .map-status-save {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+}
+
 .elev-error {
   position: absolute;
   bottom: 28px;

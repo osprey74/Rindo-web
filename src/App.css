@@ -53,6 +53,31 @@
   outline-offset: 2px;
 }
 
+@media (max-width: 768px) {
+  .app-header {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .app-header h1 {
+    font-size: 18px;
+  }
+
+  /* Hide the long tagline on phones to save horizontal space. */
+  .tagline {
+    display: none;
+  }
+
+  .app-header-actions {
+    gap: 6px;
+  }
+
+  .app-header-info {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+}
+
 .app-main {
   flex: 1 1 auto;
   position: relative;

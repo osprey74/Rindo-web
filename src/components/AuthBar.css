@@ -57,3 +57,20 @@
   color: #DC2626;
   font-size: 11px;
 }
+
+@media (max-width: 768px) {
+  .auth-bar-button {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .auth-bar-user {
+    max-width: 80px;
+    font-size: 11px;
+  }
+
+  /* Hide the error inline message on phones; rely on console for detail. */
+  .auth-bar-error {
+    display: none;
+  }
+}

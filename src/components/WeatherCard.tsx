@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchSapporoWeather, weatherEmoji, type WeatherForecast } from '../lib/weather'
+import { useMediaQuery, MOBILE_QUERY } from '../lib/use-media-query'
 import './WeatherCard.css'
 
 const TODAY_LABEL = ['今日', '明日', '明後日']
@@ -11,9 +12,10 @@ function formatDateLabel(iso: string, idx: number): string {
 }
 
 export function WeatherCard() {
+  const isMobile = useMediaQuery(MOBILE_QUERY)
   const [forecast, setForecast] = useState<WeatherForecast | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(isMobile)
 
   useEffect(() => {
     let cancelled = false
@@ -60,7 +62,7 @@ export function WeatherCard() {
           type="button"
           className="weather-toggle"
           onClick={() => setCollapsed((v) => !v)}
-          aria-expanded={!collapsed}
+          aria-expanded={collapsed ? 'false' : 'true'}
           title={collapsed ? '天気を展開' : '天気を折り畳む'}
         >
           {collapsed ? '▼' : '▲'}

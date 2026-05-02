@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ElevationProfile } from '../lib/elevation'
+import { useMediaQuery, MOBILE_QUERY } from '../lib/use-media-query'
 import './ElevationChart.css'
 
 type Props = {
@@ -11,7 +12,8 @@ const CHART_H = 120
 const PAD = { top: 12, right: 12, bottom: 22, left: 44 }
 
 export function ElevationChart({ profile }: Props) {
-  const [collapsed, setCollapsed] = useState(false)
+  const isMobile = useMediaQuery(MOBILE_QUERY)
+  const [collapsed, setCollapsed] = useState(isMobile)
 
   const innerW = CHART_W - PAD.left - PAD.right
   const innerH = CHART_H - PAD.top - PAD.bottom
@@ -56,7 +58,7 @@ export function ElevationChart({ profile }: Props) {
           type="button"
           className="elev-toggle"
           onClick={() => setCollapsed((v) => !v)}
-          aria-expanded={!collapsed}
+          aria-expanded={collapsed ? 'false' : 'true'}
           title={collapsed ? '勾配グラフを展開' : '勾配グラフを折り畳む'}
         >
           {collapsed ? '▲' : '▼'}
