@@ -598,6 +598,22 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
   return (
     <>
       <div ref={containerRef} className="map-canvas" />
+      <svg
+        className="map-crosshair"
+        width="22"
+        height="22"
+        viewBox="0 0 22 22"
+        aria-hidden="true"
+      >
+        <g className="map-crosshair-stroke" fill="none" strokeWidth="1.2">
+          <line x1="11" y1="2" x2="11" y2="8" />
+          <line x1="11" y1="14" x2="11" y2="20" />
+          <line x1="2" y1="11" x2="8" y2="11" />
+          <line x1="14" y1="11" x2="20" y2="11" />
+          <circle cx="11" cy="11" r="3" />
+        </g>
+        <circle className="map-crosshair-dot" cx="11" cy="11" r="0.8" />
+      </svg>
       <div className="map-status" role="status" aria-live="polite">
         <span className="map-status-text">{statusText}</span>
         {route && isAuthenticated && (

@@ -184,3 +184,22 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
   transition: transform 0.1s, box-shadow 0.1s;
 }
+
+/* Center crosshair to make "register current center" visually unambiguous. */
+.map-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.map-crosshair-stroke {
+  stroke: rgba(17, 17, 17, 0.6);
+  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.9));
+}
+
+.map-crosshair-dot {
+  fill: rgba(17, 17, 17, 0.7);
+}
