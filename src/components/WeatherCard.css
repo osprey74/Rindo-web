@@ -132,10 +132,15 @@
 }
 
 @media (max-width: 768px) {
+  /* On phones, anchor the weather card to the bottom-left so it doesn't
+     compete with the map area at the top. The card grows upward when the
+     user taps the toggle to expand. */
   .weather-card {
     width: 180px;
-    top: 8px;
+    top: auto;
+    bottom: 28px;
     left: 8px;
+    right: auto;
     font-size: 11px;
   }
 
@@ -149,5 +154,17 @@
 
   .weather-day-text {
     font-size: 10px;
+  }
+
+  /* Hide the small "1 km" scale label that lives in the same corner. */
+  .maplibregl-ctrl-bottom-left .maplibregl-ctrl-scale {
+    display: none;
+  }
+
+  /* Avoid bottom-left overlap with the elevation panel when a route is shown.
+     Users typically check weather before planning a route; elevation is for
+     the route itself, so they rarely need to be visible at once on a phone. */
+  .app-main:has(.elev-panel) .weather-card {
+    display: none;
   }
 }
