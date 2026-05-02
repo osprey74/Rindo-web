@@ -260,6 +260,13 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
   // MapLibre clips line geometries to tile bounds, so click events only
   // expose the segment within the clicked tile.
   const curatedFeaturesRef = useRef<Map<number, GeoJSON.Feature>>(new Map())
+  // Data backing the currently-open popup, used by the "ルートを取り込む"
+  // button click handler (delegated on the popup element).
+  const curatedPopupDataRef = useRef<{
+    coords: [number, number][]
+    lengthM: number
+    profile: ElevationProfile | null
+  } | null>(null)
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
@@ -334,6 +341,59 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
       curatedEndpointMarkersRef.current.push(marker)
     }
 
+    const importCuratedRoute = () => {
+      const data = curatedPopupDataRef.current
+      if (!data || data.coords.length < 2) return
+      const { coords, lengthM, profile } = data
+
+      const distance_km = profile?.total_distance_km ?? lengthM / 1000
+      // Average bicycle cruising speed used to estimate duration when we
+      // don't go through Valhalla. 15 km/h is the default Valhalla bicycle
+      // base speed, kept consistent so imported and planned routes look alike.
+      const AVG_SPEED_KMH = 15
+      const time_min = (distance_km / AVG_SPEED_KMH) * 60
+
+      skipNextFetchRef.current = true
+      setWaypoints([
+        { lon: coords[0][0], lat: coords[0][1], id: newWaypointId() },
+        {
+          lon: coords[coords.length - 1][0],
+          lat: coords[coords.length - 1][1],
+          id: newWaypointId(),
+        },
+      ])
+      setRoute({
+        coordinates: coords,
+        distance_km,
+        time_min,
+      })
+      setError(null)
+      setFetching(false)
+
+      curatedPopupRef.current?.remove()
+      curatedPopupRef.current = null
+      clearCuratedEndpoints()
+      curatedPopupDataRef.current = null
+
+      let minLon = Infinity
+      let minLat = Infinity
+      let maxLon = -Infinity
+      let maxLat = -Infinity
+      for (const [lon, lat] of coords) {
+        if (lon < minLon) minLon = lon
+        if (lon > maxLon) maxLon = lon
+        if (lat < minLat) minLat = lat
+        if (lat > maxLat) maxLat = lat
+      }
+      map.fitBounds(
+        [
+          [minLon, minLat],
+          [maxLon, maxLat],
+        ],
+        { padding: 60, duration: 600, maxZoom: 16 },
+      )
+    }
+
     const showCuratedPopup = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
       const feature = e.features?.[0]
       if (!feature) return
@@ -352,6 +412,8 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
       const lengthM = geometryLengthMeters(geometry)
       const coords = geometryToCoords(geometry)
 
+      curatedPopupDataRef.current = { coords, lengthM, profile: null }
+
       if (coords.length >= 2) {
         addCuratedEndpoint(coords[0], 'start')
         addCuratedEndpoint(coords[coords.length - 1], 'end')
@@ -363,8 +425,23 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
         .addTo(map)
       curatedPopupRef.current = popup
 
+      // Delegate clicks on the import button to importCuratedRoute. The popup
+      // element persists across setHTML calls, so a single listener works.
+      const popupEl = popup.getElement()
+      popupEl.addEventListener('click', (ev) => {
+        const target = ev.target as HTMLElement | null
+        if (target?.closest('[data-action="import-route"]')) {
+          ev.preventDefault()
+          ev.stopPropagation()
+          importCuratedRoute()
+        }
+      })
+
       popup.on('close', () => {
-        if (curatedPopupRef.current === popup) curatedPopupRef.current = null
+        if (curatedPopupRef.current === popup) {
+          curatedPopupRef.current = null
+          curatedPopupDataRef.current = null
+        }
         clearCuratedEndpoints()
       })
 
@@ -372,6 +449,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
         .then((profile) => {
           if (token !== curatedPopupTokenRef.current) return
           if (curatedPopupRef.current !== popup) return
+          curatedPopupDataRef.current = { coords, lengthM, profile }
           popup.setHTML(popupFilledHTML(props, profile))
         })
         .catch((err: unknown) => {

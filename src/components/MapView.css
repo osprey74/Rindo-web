@@ -274,6 +274,26 @@
   font-variant-numeric: tabular-nums;
 }
 
+.curated-popup-import {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 7px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.curated-popup-import:hover {
+  filter: brightness(1.1);
+}
+
 .curated-popup-loading,
 .curated-popup-error {
   margin-top: 8px;

@@ -106,6 +106,8 @@ function statRow(label: string, value: string): string {
   return `<div class="curated-popup-stat"><span>${label}</span><strong>${value}</strong></div>`
 }
 
+const IMPORT_BUTTON = `<button type="button" class="curated-popup-import" data-action="import-route">ルートを取り込む</button>`
+
 /** Initial popup shown immediately on click. Stats / chart are placeholders. */
 export function popupSkeletonHTML(
   props: CuratedRoadProperties,
@@ -122,6 +124,7 @@ export function popupSkeletonHTML(
       ${statRow('最大勾配', '— %')}
     </div>
     <div class="curated-popup-loading">標高を取得中…</div>
+    ${IMPORT_BUTTON}
   </div>`
 }
 
@@ -147,6 +150,7 @@ export function popupFilledHTML(
     </div>
     ${sparklineSVG(profile)}
     <div class="curated-popup-elev-range">標高 ${elevMin} m 〜 ${elevMax} m</div>
+    ${IMPORT_BUTTON}
   </div>`
 }
 
@@ -164,5 +168,6 @@ export function popupErrorHTML(
       ${statRow('距離', `${km} km`)}
     </div>
     <div class="curated-popup-error">${escapeHtml(message)}</div>
+    ${IMPORT_BUTTON}
   </div>`
 }
