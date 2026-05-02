@@ -65,7 +65,9 @@ export function WeatherCard() {
           aria-expanded={collapsed ? 'false' : 'true'}
           title={collapsed ? '天気を展開' : '天気を折り畳む'}
         >
-          {collapsed ? '▼' : '▲'}
+          {/* On mobile the card is anchored at the bottom and grows upward,
+              so the arrow direction is reversed vs. the top-anchored desktop. */}
+          {isMobile ? (collapsed ? '▲' : '▼') : (collapsed ? '▼' : '▲')}
         </button>
       </header>
       {!collapsed && (
