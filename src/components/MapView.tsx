@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import { useAuth } from '../contexts/AuthContext'
 import { baseMapStyle, SAPPORO_CENTER, INITIAL_ZOOM } from '../lib/mapStyle'
@@ -7,12 +7,18 @@ import { fetchElevationProfile, type ElevationProfile } from '../lib/elevation'
 import { fetchNearbyFacilities, type Facility } from '../lib/facilities'
 import { buildGpx, downloadGpx } from '../lib/gpx'
 import { createSavedRoute, type SavedRoute } from '../lib/saved-routes'
+import { CATEGORY_EMOJI, type SavedLocation } from '../lib/saved-locations'
 import { ElevationChart } from './ElevationChart'
 import { SaveRouteDialog } from './SaveRouteDialog'
 import cyclingRoadsUrl from '../../sapporo-cyclingroad.corrected.geojson?url'
 import osmCyclewaysUrl from '../../sapporo-osm-cycleways.geojson?url'
 import osmBicycleRoutesUrl from '../../dosou-osm-bicycle-routes.geojson?url'
 import './MapView.css'
+
+export type MapViewHandle = {
+  /** Returns the current map center as { lon, lat }, or null if not ready. */
+  getCenter: () => { lon: number; lat: number } | null
+}
 
 type CyclingRoadProperties = {
   fid: number
@@ -158,9 +164,22 @@ type Props = {
   onRouteLoaded?: () => void
   /** Called after a route is successfully saved (so panels can refresh). */
   onRouteSaved?: () => void
+  /** When set, append this point to the current waypoints (used by location picker). */
+  pendingWaypoint?: LonLat | null
+  /** Called after pendingWaypoint has been consumed. */
+  onPendingWaypointConsumed?: () => void
+  /** Saved locations to render as small markers on the map. */
+  savedLocations?: SavedLocation[]
 }
 
-export function MapView({ routeToLoad, onRouteLoaded, onRouteSaved }: Props) {
+export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
+  routeToLoad,
+  onRouteLoaded,
+  onRouteSaved,
+  pendingWaypoint,
+  onPendingWaypointConsumed,
+  savedLocations,
+}, ref) {
   const { state: authState } = useAuth()
   const isAuthenticated = authState.status === 'authenticated'
 
@@ -168,6 +187,20 @@ export function MapView({ routeToLoad, onRouteLoaded, onRouteSaved }: Props) {
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markersRef = useRef<maplibregl.Marker[]>([])
   const facilityMarkersRef = useRef<maplibregl.Marker[]>([])
+  const locationMarkersRef = useRef<maplibregl.Marker[]>([])
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      getCenter: () => {
+        const m = mapRef.current
+        if (!m) return null
+        const c = m.getCenter()
+        return { lon: c.lng, lat: c.lat }
+      },
+    }),
+    [],
+  )
 
   const [waypoints, setWaypoints] = useState<Waypoint[]>([])
   const [route, setRoute] = useState<RouteResult | null>(null)
@@ -248,6 +281,7 @@ export function MapView({ routeToLoad, onRouteLoaded, onRouteSaved }: Props) {
       mapRef.current = null
       markersRef.current = []
       facilityMarkersRef.current = []
+      locationMarkersRef.current = []
     }
   }, [])
 
@@ -273,6 +307,37 @@ export function MapView({ routeToLoad, onRouteLoaded, onRouteSaved }: Props) {
       markersRef.current.push(marker)
     })
   }, [waypoints])
+
+  // Render saved locations as small emoji markers. Tapping one appends a
+  // waypoint at that point so the user can compose routes from saved spots.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    for (const m of locationMarkersRef.current) m.remove()
+    locationMarkersRef.current = []
+
+    if (!savedLocations) return
+
+    for (const loc of savedLocations) {
+      const el = document.createElement('div')
+      el.className = `location-marker location-marker-${loc.category}`
+      el.textContent = CATEGORY_EMOJI[loc.category]
+      el.title = `${loc.name}（クリックで経由地に追加）`
+      el.addEventListener('click', (e) => {
+        e.stopPropagation()
+        setWaypoints((prev) => [
+          ...prev,
+          { lon: loc.lon, lat: loc.lat, id: newWaypointId() },
+        ])
+        setError(null)
+      })
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([loc.lon, loc.lat])
+        .addTo(map)
+      locationMarkersRef.current.push(marker)
+    }
+  }, [savedLocations])
 
   useEffect(() => {
     if (waypoints.length < 2) {
@@ -345,6 +410,18 @@ export function MapView({ routeToLoad, onRouteLoaded, onRouteSaved }: Props) {
         setElevationError(err.message || '標高プロファイル取得に失敗しました')
       })
   }, [route])
+
+  // Append a waypoint when the parent provides pendingWaypoint (e.g. from
+  // the saved-locations panel "use" action).
+  useEffect(() => {
+    if (!pendingWaypoint) return
+    setWaypoints((prev) => [
+      ...prev,
+      { lon: pendingWaypoint.lon, lat: pendingWaypoint.lat, id: newWaypointId() },
+    ])
+    setError(null)
+    onPendingWaypointConsumed?.()
+  }, [pendingWaypoint, onPendingWaypointConsumed])
 
   useEffect(() => {
     if (waypoints.length < 2) {
@@ -571,4 +648,4 @@ export function MapView({ routeToLoad, onRouteLoaded, onRouteSaved }: Props) {
       />
     </>
   )
-}
+})
