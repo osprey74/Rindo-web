@@ -1,0 +1,132 @@
+.weather-card {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 220px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  z-index: 1;
+  font-size: 12px;
+  color: var(--text-h);
+  overflow: hidden;
+}
+
+.weather-card-loading,
+.weather-card-error {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.weather-card-error {
+  color: var(--text);
+}
+
+.weather-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.weather-card.is-collapsed .weather-header {
+  border-bottom: none;
+}
+
+.weather-title {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.weather-area {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.weather-source {
+  color: var(--text);
+  font-size: 10px;
+}
+
+.weather-toggle {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--code-bg);
+  color: var(--text-h);
+  font-size: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  padding: 0;
+}
+
+.weather-toggle:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+.weather-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.weather-days {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.weather-day {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.weather-day:last-child {
+  border-bottom: none;
+}
+
+.weather-day-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.weather-day-name {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.weather-day-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.weather-day-text {
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: normal;
+  word-break: break-all;
+  margin-bottom: 4px;
+}
+
+.weather-day-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+}
+
+.weather-meta-item {
+  white-space: nowrap;
+}

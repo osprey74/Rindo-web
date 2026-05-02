@@ -16,7 +16,10 @@
 
 - **フロントエンド**: React 19 + TypeScript + Vite
 - **地図ライブラリ**: MapLibre GL JS
-- **タイル**: CyclOSM（自転車特化レンダリング）
+- **タイル**: OpenStreetMap 標準（`tile.openstreetmap.org`）
+  - 当初は CyclOSM を採用したが、`openstreetmap.fr` の提供サーバが zoom 17 以上で応答せず（HTTP 000）、過剰なオーバーズーム表示になるため OSM 標準に切替（2026-05-02）
+  - 自転車道情報は Web 側オーバーレイ Layer 1（緑、OSM `highway=cycleway`）で確保
+  - CyclOSM の見た目を復活させたい場合は [Stadia Maps](https://stadiamaps.com/) の無料 API キーを取得し `https://tiles.stadiamaps.com/tiles/cyclosm/{z}/{x}/{y}.png?api_key=...` に切替
 - **バックエンド**（別途）: Bun + Hono + SQLite、Fly.io（nrt）
 - **ルーティング**（別途）: Valhalla（bicycle プロファイル）
 

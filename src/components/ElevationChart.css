@@ -1,0 +1,75 @@
+.elev-panel {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, calc(100% - 24px));
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  z-index: 1;
+  font-size: 13px;
+  color: var(--text-h);
+  overflow: hidden;
+}
+
+.elev-stats {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.elev-panel.is-collapsed .elev-stats {
+  border-bottom: none;
+}
+
+.elev-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.elev-stat-label {
+  color: var(--text);
+  font-size: 11px;
+}
+
+.elev-stat-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.elev-toggle {
+  margin-left: auto;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--code-bg);
+  color: var(--text-h);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.elev-toggle:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+.elev-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.elev-chart {
+  display: block;
+  width: 100%;
+  height: 120px;
+  padding: 4px 0;
+}

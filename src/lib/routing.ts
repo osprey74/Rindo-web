@@ -15,12 +15,12 @@ type ValhallaRouteResponse = {
   }
 }
 
-export async function fetchBicycleRoute(start: LonLat, end: LonLat): Promise<RouteResult> {
+export async function fetchBicycleRoute(waypoints: LonLat[]): Promise<RouteResult> {
+  if (waypoints.length < 2) {
+    throw new Error('ルート計算には出発地と目的地（最低 2 点）が必要です')
+  }
   const body = {
-    locations: [
-      { lon: start.lon, lat: start.lat },
-      { lon: end.lon, lat: end.lat },
-    ],
+    locations: waypoints.map(({ lon, lat }) => ({ lon, lat })),
     costing: 'bicycle',
     costing_options: {
       bicycle: {
@@ -30,7 +30,7 @@ export async function fetchBicycleRoute(start: LonLat, end: LonLat): Promise<Rou
       },
     },
   }
-  const res = await fetch('/api/route', {
+  const res = await fetch('/api/valhalla/route', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
