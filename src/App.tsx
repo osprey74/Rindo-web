@@ -6,9 +6,11 @@ import { AuthBar } from './components/AuthBar'
 import { WeatherCard } from './components/WeatherCard'
 import { SavedRoutesPanel } from './components/SavedRoutesPanel'
 import { SavedLocationsPanel } from './components/SavedLocationsPanel'
+import { SettingsDialog } from './components/SettingsDialog'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import type { SavedRoute } from './lib/saved-routes'
 import { listSavedLocations, type SavedLocation } from './lib/saved-locations'
+import { getProfile, type UserProfile } from './lib/profile'
 import type { LonLat } from './lib/routing'
 
 function AppContent() {
@@ -17,17 +19,20 @@ function AppContent() {
 
   const mapViewRef = useRef<MapViewHandle>(null)
   const [attribOpen, setAttribOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [savedRoutesOpen, setSavedRoutesOpen] = useState(false)
   const [savedLocationsOpen, setSavedLocationsOpen] = useState(false)
   const [routeToLoad, setRouteToLoad] = useState<SavedRoute | null>(null)
   const [pendingWaypoint, setPendingWaypoint] = useState<LonLat | null>(null)
   const [savedLocations, setSavedLocations] = useState<SavedLocation[]>([])
+  const [profile, setProfile] = useState<UserProfile | null>(null)
 
   // Load saved locations whenever auth state turns authenticated, so the
   // map markers and panel are populated immediately on login.
   useEffect(() => {
     if (!isAuthenticated) {
       setSavedLocations([])
+      setProfile(null)
       return
     }
     let cancelled = false
@@ -37,6 +42,13 @@ function AppContent() {
       })
       .catch((err: unknown) => {
         console.error('failed to load saved locations:', err)
+      })
+    getProfile()
+      .then((p) => {
+        if (!cancelled) setProfile(p)
+      })
+      .catch((err: unknown) => {
+        console.error('failed to load profile:', err)
       })
     return () => {
       cancelled = true
@@ -73,6 +85,13 @@ function AppContent() {
               >
                 保存ルート
               </button>
+              <button
+                type="button"
+                className="app-header-info"
+                onClick={() => setSettingsOpen(true)}
+              >
+                ⚙ 設定
+              </button>
             </>
           )}
           <AuthBar />
@@ -93,10 +112,16 @@ function AppContent() {
           pendingWaypoint={pendingWaypoint}
           onPendingWaypointConsumed={() => setPendingWaypoint(null)}
           savedLocations={isAuthenticated ? savedLocations : undefined}
+          profile={isAuthenticated ? profile : null}
         />
         <WeatherCard />
       </main>
       <AttributionDialog open={attribOpen} onClose={() => setAttribOpen(false)} />
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onSaved={(p) => setProfile(p)}
+      />
       <SavedRoutesPanel
         open={savedRoutesOpen}
         onClose={() => setSavedRoutesOpen(false)}

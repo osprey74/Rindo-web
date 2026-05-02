@@ -4,12 +4,21 @@ import { useAuth } from '../contexts/AuthContext'
 import { baseMapStyle, SAPPORO_CENTER, INITIAL_ZOOM } from '../lib/mapStyle'
 import { fetchBicycleRoute, type LonLat, type RouteResult } from '../lib/routing'
 import { fetchElevationProfile, type ElevationProfile } from '../lib/elevation'
+import { estimateCaloriesFromProfile } from '../lib/calorie'
+import type { UserProfile } from '../lib/profile'
 import { fetchNearbyFacilities, type Facility } from '../lib/facilities'
 import { buildGpx, downloadGpx } from '../lib/gpx'
 import { createSavedRoute, type SavedRoute } from '../lib/saved-routes'
 import { CATEGORY_EMOJI, type SavedLocation } from '../lib/saved-locations'
 import { ElevationChart } from './ElevationChart'
 import { SaveRouteDialog } from './SaveRouteDialog'
+import {
+  geometryToCoords,
+  geometryLengthMeters,
+  popupSkeletonHTML,
+  popupFilledHTML,
+  popupErrorHTML,
+} from '../lib/curated-road-stats'
 import cyclingRoadsUrl from '../../sapporo-cyclingroad.corrected.geojson?url'
 import osmCyclewaysUrl from '../../sapporo-osm-cycleways.geojson?url'
 import osmBicycleRoutesUrl from '../../dosou-osm-bicycle-routes.geojson?url'
@@ -97,6 +106,31 @@ function setupLayers(map: maplibregl.Map) {
     },
   })
 
+  // Route name labels following the line. `symbol-spacing` causes long routes
+  // to repeat the name at multiple positions automatically.
+  map.addLayer({
+    id: 'cycling-roads-labels',
+    type: 'symbol',
+    source: 'cycling-roads',
+    minzoom: 10,
+    layout: {
+      'symbol-placement': 'line',
+      'symbol-spacing': 320,
+      'text-field': ['get', 'name'],
+      'text-font': ['Open Sans Regular'],
+      'text-size': 12,
+      'text-padding': 4,
+      'text-rotation-alignment': 'map',
+      'text-pitch-alignment': 'viewport',
+      'text-keep-upright': true,
+    },
+    paint: {
+      'text-color': '#5C2C00',
+      'text-halo-color': 'rgba(255, 255, 255, 0.95)',
+      'text-halo-width': 1.6,
+    },
+  })
+
   map.addLayer({
     id: 'route-outline',
     type: 'line',
@@ -170,6 +204,8 @@ type Props = {
   onPendingWaypointConsumed?: () => void
   /** Saved locations to render as small markers on the map. */
   savedLocations?: SavedLocation[]
+  /** User profile (weight/height/age) used to estimate calorie burn. */
+  profile?: UserProfile | null
 }
 
 export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
@@ -179,6 +215,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
   pendingWaypoint,
   onPendingWaypointConsumed,
   savedLocations,
+  profile,
 }, ref) {
   const { state: authState } = useAuth()
   const isAuthenticated = authState.status === 'authenticated'
@@ -216,6 +253,13 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
   const elevationTokenRef = useRef(0)
   const facilitiesTokenRef = useRef(0)
   const skipNextFetchRef = useRef(false)
+  const curatedPopupRef = useRef<maplibregl.Popup | null>(null)
+  const curatedPopupTokenRef = useRef(0)
+  const curatedEndpointMarkersRef = useRef<maplibregl.Marker[]>([])
+  // Cache of loaded cycling-road features keyed by fid. Needed because
+  // MapLibre clips line geometries to tile bounds, so click events only
+  // expose the segment within the clicked tile.
+  const curatedFeaturesRef = useRef<Map<number, GeoJSON.Feature>>(new Map())
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
@@ -228,6 +272,8 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
       maxZoom: 19,
       maxTileCacheSize: 256,
       attributionControl: { compact: false },
+      // Render Japanese characters using OS fonts (no glyph PBF fetch needed).
+      localIdeographFontFamily: '"Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif',
     })
 
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right')
@@ -262,13 +308,96 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
           if (mapRef.current !== map) return
           const source = map.getSource('cycling-roads') as maplibregl.GeoJSONSource | undefined
           source?.setData(data)
+          curatedFeaturesRef.current.clear()
+          for (const f of data.features) {
+            const fid = (f.properties as { fid?: number } | null)?.fid
+            if (typeof fid === 'number') curatedFeaturesRef.current.set(fid, f)
+          }
         })
         .catch((err: unknown) => {
           console.error(err)
         })
     })
 
+    const clearCuratedEndpoints = () => {
+      for (const m of curatedEndpointMarkersRef.current) m.remove()
+      curatedEndpointMarkersRef.current = []
+    }
+
+    const addCuratedEndpoint = (coord: [number, number], kind: 'start' | 'end') => {
+      const el = document.createElement('div')
+      el.className = `curated-endpoint curated-endpoint-${kind}`
+      el.textContent = kind === 'start' ? 'S' : 'G'
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat(coord)
+        .addTo(map)
+      curatedEndpointMarkersRef.current.push(marker)
+    }
+
+    const showCuratedPopup = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+      const feature = e.features?.[0]
+      if (!feature) return
+
+      curatedPopupRef.current?.remove()
+      clearCuratedEndpoints()
+      curatedPopupTokenRef.current += 1
+      const token = curatedPopupTokenRef.current
+
+      const props = feature.properties as CyclingRoadProperties
+      // The clicked feature.geometry is clipped to the tile that received the
+      // click, so for long routes the start/end appear at tile boundaries.
+      // Look up the original full feature by fid for accurate geometry.
+      const fullFeature = curatedFeaturesRef.current.get(props.fid)
+      const geometry = fullFeature?.geometry ?? feature.geometry
+      const lengthM = geometryLengthMeters(geometry)
+      const coords = geometryToCoords(geometry)
+
+      if (coords.length >= 2) {
+        addCuratedEndpoint(coords[0], 'start')
+        addCuratedEndpoint(coords[coords.length - 1], 'end')
+      }
+
+      const popup = new maplibregl.Popup({ offset: 6, maxWidth: '320px' })
+        .setLngLat(e.lngLat)
+        .setHTML(popupSkeletonHTML(props, lengthM))
+        .addTo(map)
+      curatedPopupRef.current = popup
+
+      popup.on('close', () => {
+        if (curatedPopupRef.current === popup) curatedPopupRef.current = null
+        clearCuratedEndpoints()
+      })
+
+      fetchElevationProfile(coords)
+        .then((profile) => {
+          if (token !== curatedPopupTokenRef.current) return
+          if (curatedPopupRef.current !== popup) return
+          popup.setHTML(popupFilledHTML(props, profile))
+        })
+        .catch((err: unknown) => {
+          if (token !== curatedPopupTokenRef.current) return
+          if (curatedPopupRef.current !== popup) return
+          const message = err instanceof Error ? err.message : '標高取得に失敗しました'
+          popup.setHTML(popupErrorHTML(props, lengthM, message))
+        })
+    }
+
+    const curatedLayers = ['cycling-roads-exclusive', 'cycling-roads-shared', 'cycling-roads-labels']
+    for (const layerId of curatedLayers) {
+      map.on('click', layerId, showCuratedPopup)
+      map.on('mouseenter', layerId, () => {
+        map.getCanvas().style.cursor = 'pointer'
+      })
+      map.on('mouseleave', layerId, () => {
+        map.getCanvas().style.cursor = ''
+      })
+    }
+
     map.on('click', (e) => {
+      // Suppress waypoint creation when the click landed on a curated cycling
+      // road; that click already opened the info popup.
+      const hits = map.queryRenderedFeatures(e.point, { layers: curatedLayers })
+      if (hits.length > 0) return
       const wp: Waypoint = { lon: e.lngLat.lng, lat: e.lngLat.lat, id: newWaypointId() }
       setWaypoints((prev) => [...prev, wp])
       setError(null)
@@ -277,6 +406,10 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
     mapRef.current = map
 
     return () => {
+      curatedPopupRef.current?.remove()
+      curatedPopupRef.current = null
+      for (const m of curatedEndpointMarkersRef.current) m.remove()
+      curatedEndpointMarkersRef.current = []
       map.remove()
       mapRef.current = null
       markersRef.current = []
@@ -583,7 +716,12 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
     statusText = '⏳ ルート計算中...'
   } else if (route) {
     const viaSuffix = viaCount > 0 ? ` · 経由地 ${viaCount}` : ''
-    statusText = `🚲 ${route.distance_km.toFixed(2)} km · ${Math.round(route.time_min)} 分${viaSuffix}`
+    const kcal =
+      profile?.weight_kg != null
+        ? estimateCaloriesFromProfile(profile.weight_kg, route.time_min, elevation)
+        : null
+    const kcalSuffix = kcal != null ? ` · 約 ${Math.round(kcal)} kcal` : ''
+    statusText = `🚲 ${route.distance_km.toFixed(2)} km · ${Math.round(route.time_min)} 分${kcalSuffix}${viaSuffix}`
   } else if (waypoints.length === 0) {
     statusText = '📍 出発地点をクリックしてください'
   } else if (waypoints.length === 1) {

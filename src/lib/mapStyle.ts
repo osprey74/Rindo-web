@@ -14,6 +14,10 @@ import type { StyleSpecification } from 'maplibre-gl'
 //   https://tiles.stadiamaps.com/tiles/cyclosm/{z}/{x}/{y}.png?api_key=...
 export const baseMapStyle: StyleSpecification = {
   version: 8,
+  // glyphs are required for symbol layers (text labels). CJK characters are
+  // rendered locally via `localIdeographFontFamily` on the Map, so this
+  // demotiles URL is only fetched for non-CJK characters (parens, digits).
+  glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
   sources: {
     osm: {
       type: 'raster',
