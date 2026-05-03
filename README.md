@@ -33,13 +33,16 @@
 ```
 [ ブラウザ（PC・iPhone）]
    ↓ Tailscale 経由 https://home-mac-mini.taila6ea.ts.net
-[ M1 Mac mini @ 自宅 ]
+[ M2 Mac mini @ 自宅 ]
    ├─ Caddy（リバースプロキシ + 静的配信、port 8080）
    │     ├─ /                  → Rindo-web 静的ファイル（このリポジトリ）
-   │     ├─ /api/auth/*        → rindo-api
-   │     ├─ /api/routes/*      → rindo-api
-   │     ├─ /api/locations/*   → rindo-api
-   │     ├─ /api/cycling-roads → rindo-api
+   │     ├─ /api/auth/login    → rindo-api（公開、シングルユーザートークン発行）
+   │     ├─ /api/auth/logout   → rindo-api（公開）
+   │     ├─ /api/auth/me       → rindo-api（要認証）
+   │     ├─ /api/routes/*      → rindo-api（要認証）
+   │     ├─ /api/locations/*   → rindo-api（要認証）
+   │     ├─ /api/cycling-roads → rindo-api（要認証）
+   │     ├─ /api/profile       → rindo-api（要認証）
    │     ├─ /api/health        → rindo-api
    │     ├─ /api/valhalla/*    → Valhalla
    │     ├─ /api/elevation     → OpenTopoData（リバプロ）
@@ -61,8 +64,8 @@
   - CyclOSM の見た目を復活させたい場合は [Stadia Maps](https://stadiamaps.com/) の無料 API キーを取得して切替可能
 - **バックエンド**: [github.com/osprey74/rindo-api](https://github.com/osprey74/rindo-api)（Bun + Hono + SQLite、自宅 Mac mini で常時稼働）
 - **ルーティング**: Valhalla（bicycle プロファイル、Docker、道央圏 OSM 切り出し）
-- **認証**: シングルユーザー・セッショントークン方式（個人利用・Tailnet 内限定運用前提）
-- **デプロイ**: 自宅 M1 Mac mini + Tailscale serve（Fly.io 相当の運用、月額電気代のみ）
+- **認証**: シングルユーザー・セッショントークン方式（`POST /api/auth/login`、個人利用・Tailnet 内限定運用前提、Apple Sign In は不採用）
+- **デプロイ**: 自宅 M2 Mac mini + Tailscale serve（Fly.io 相当の運用、月額電気代のみ）
 
 ## ローカル開発セットアップ
 
@@ -142,7 +145,7 @@ bun run scripts/tag-large-scale.ts       # → large_scale フラグ再付与
 
 ## デプロイ
 
-本番運用は自宅 M1 Mac mini + Tailscale serve。詳細は [HANDOFF_cycling-nav.md](./HANDOFF_cycling-nav.md) のデプロイセクション参照。
+本番運用は自宅 M2 Mac mini + Tailscale serve。詳細は [HANDOFF_cycling-nav.md](./HANDOFF_cycling-nav.md) のデプロイセクション参照。
 
 更新フロー:
 
