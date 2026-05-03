@@ -458,9 +458,58 @@ out center;
 
 ---
 
+## iOS 版の二層アーキテクチャ（ログインオプション化）
+
+### 背景
+
+現在の iOS 版は Tailscale 閉域ネットワーク内の rindo-api への接続を前提としている。他のユーザーが同等環境を構築するコストは高い。一方、GPX ファイルのインポートによるライン追従ナビだけでも実用的なサイクリングナビとして成立する。
+
+将来の App Store 公開や TestFlight 外部配布を見据え、**ログインをオプション化**し、バックエンド未接続でもスタンドアロンで動作する構成とする。
+
+### 機能の二層構成
+
+```
+起動 → 地図画面（ログイン不要）
+ │
+ ├─ スタンドアロン機能（バックエンド不要）
+ │   ├─ 地図表示 + Layer 1/2（バンドル GeoJSON）
+ │   ├─ GPX ファイルインポート（Files / Share Sheet）
+ │   ├─ ライン追従ナビゲーション
+ │   │   ├─ 進行方向矢印マーカー（CLLocation.course で回転）
+ │   │   ├─ 目的地への直線表示
+ │   │   └─ 30m ルート逸脱検知 → ハプティクス + 音声通知
+ │   ├─ 走行情報（速度・距離・経過時間）
+ │   ├─ GPS 走行ログ記録・GPX エクスポート
+ │   ├─ GPX 内の標高データ表示（<ele> タグ）
+ │   └─ 出典・ライセンス画面
+ │
+ └─ サーバ連携機能（設定画面からオプションでログイン）
+     ├─ Layer 3（サイクリングロード DB、/api/cycling-roads）
+     ├─ Valhalla ターンバイターンナビ（/api/valhalla/route）
+     ├─ ルート同期（/api/routes）
+     ├─ 地点同期（/api/locations）
+     ├─ 標高プロファイル（OpenTopoData /api/elevation）
+     ├─ 天気予報（JMA /api/weather）
+     └─ 走行ログアップロード（/api/rides、未実装）
+```
+
+### 配布方式
+
+| 方式 | 審査 | 対象 |
+|---|---|---|
+| TestFlight 内部テスト | 不要 | 同チーム最大 100 名（当面はこれで十分） |
+| TestFlight 外部テスト | 簡易審査 | 最大 10,000 名 |
+| App Store | 完全審査 | 一般公開（ログインオプション化が必須） |
+
+### App Store 審査対応
+
+レビュアーは Tailscale に接続できないため、ログイン必須の設計では審査リジェクトとなる。ログインオプション化により、レビュアーはスタンドアロン機能（GPX ナビ）を一通り使用でき、サーバ連携機能は「自前サーバー接続（オプション）」として存在する形となる。
+
+---
+
 ## 既知の課題・制約
 
-- さっぽろサイクリングマップのデジタイズデータは**数十m程度の位置誤差あり**。Valhalla `/trace_attributes` で OSM にスナップする map matching 処理は実装済み（`Rindo-web/scripts/match-cycling-roads.ts`）だが、QGIS での手動補正余地は残る
+- さっぽろサイクリングマップのデジタイズデータは Valhalla `/trace_attributes` での map matching（`Rindo-web/scripts/match-cycling-roads.ts`）＋ **QGIS での手動補正済み**。`sapporo-cyclingroad.corrected.geojson` が補正後の正本
 - Valhalla の bicycle プロファイルはサイクリングロード「優先」であり「限定」ではない。一般道への進入を完全に防ぐには API レイヤーでのポストフィルタリングが別途必要
 - macOS 15 Sequoia + bun の既知問題（SIGKILL）あり。esbuild バイナリの `/opt/homebrew/bin/` 配置でワークアラウンド済みのプロジェクトを参考にすること
 - iOS 版（Rindo for iOS）は将来対応予定。現時点は Web アプリのみ。Android は現時点で計画なし

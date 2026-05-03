@@ -284,6 +284,13 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
     })
 
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right')
+    map.addControl(
+      new maplibregl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true,
+      }),
+      'top-right',
+    )
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
 
     map.on('load', () => {
