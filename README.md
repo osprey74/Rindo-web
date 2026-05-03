@@ -41,7 +41,7 @@
    │     ├─ /api/auth/me       → rindo-api（要認証）
    │     ├─ /api/routes/*      → rindo-api（要認証）
    │     ├─ /api/locations/*   → rindo-api（要認証）
-   │     ├─ /api/cycling-roads → rindo-api（要認証）
+   │     ├─ /api/cycling-roads → rindo-api（公開、Tailnet 限定運用のため CRUD すべて認証なし）
    │     ├─ /api/profile       → rindo-api（要認証）
    │     ├─ /api/health        → rindo-api
    │     ├─ /api/valhalla/*    → Valhalla

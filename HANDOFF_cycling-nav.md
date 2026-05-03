@@ -210,6 +210,11 @@ Docker Desktop → Resources → Memory: 最低2GB（道央圏）、北海道全
 GET  /api/health                          死活確認
 POST /api/auth/login                      シングルユーザーセッショントークン発行
 POST /api/auth/logout                     セッション無効化（best-effort）
+GET  /api/cycling-roads                   Layer 3（GeoJSON FeatureCollection）
+GET  /api/cycling-roads/:id               単体取得（GeoJSON Feature）
+POST /api/cycling-roads                   新規作成（Tailnet 内のみ到達可能なため認証なし）
+PUT  /api/cycling-roads/:id               更新（同上）
+DELETE /api/cycling-roads/:id             削除（同上）
 
 # 要認証（Authorization: Bearer <token>）
 GET  /api/auth/me                         現在ユーザー情報
@@ -222,11 +227,6 @@ GET  /api/locations                       地点登録一覧
 POST /api/locations                       地点作成
 PUT  /api/locations/:id                   地点更新
 DELETE /api/locations/:id                 地点削除
-GET  /api/cycling-roads                   Layer 3（GeoJSON FeatureCollection）
-GET  /api/cycling-roads/:id               単体取得（GeoJSON Feature）
-POST /api/cycling-roads                   新規作成
-PUT  /api/cycling-roads/:id               更新
-DELETE /api/cycling-roads/:id             削除
 GET  /api/profile                         プロフィール取得
 PUT  /api/profile                         プロフィール更新
 ```
@@ -243,6 +243,8 @@ GET  /api/weather/{areaCode}              気象庁 API へ
 ### 認証方式
 
 シングルユーザー・セッショントークン方式。`POST /api/auth/login` でリクエストすると seeded 単一ユーザー（`users.id = 1`）のセッションが発行される。トークンはクライアント側で永続化し、以降の API 呼び出しに `Authorization: Bearer <token>` で付加する。Apple Sign In、OAuth、dev-login 等は実装していない。
+
+**Rindo は所有者一人による占有使用・Tailnet 限定運用前提**のため、認証・セキュリティは最低限のみ実装している。サイクリングロードの CRUD は管理 UI から自由に操作したいので、`/api/cycling-roads` は GET/POST/PUT/DELETE すべてを認証ミドルウェアの前にマウントしてパブリック化している（[rindo-api/src/index.ts](https://github.com/osprey74/rindo-api/blob/main/src/index.ts) 参照）。外部公開する設計に変える場合は、このマウント位置を `withCurrentUser` の後ろに戻して全ハンドラを認証必須に揃える必要がある。
 
 ---
 
@@ -527,3 +529,9 @@ Web/iOS とも、ユーザーが変更できない固定コンテンツのため
 - `cycling_roads` テーブルのスキーマを実装に合わせ修正（`geometry` → `geometry_json`、`large_scale INTEGER` 列追加）
 - rindo-api のスキーマ一覧を `001_init.sql` / `002_sessions.sql` / `003_user_profile.sql` の 3 マイグレーションで提示
 - iOS の走行ログ用 `POST /api/rides` は **rindo-api 未実装** と明示。iOS Phase 3 着手時に `rides` テーブル＋ハンドラを新規追加する宿題として記録
+
+### 2026-05-03（追補）— `/api/cycling-roads` のパブリック化反映
+
+rindo-api 側で `cyclingRoadsApp` を認証ミドルウェアの前にマウントする変更（`b91e774 Update index.ts`）が入ったため、本ファイルおよび iOS HANDOFF / 各 README の API 表を「`/api/cycling-roads` は GET/POST/PUT/DELETE すべて認証不要」に修正。
+
+**設計判断**: Rindo は所有者一人による占有使用で Tailnet 限定運用のため、認証・セキュリティは最低限のみとする方針を明文化。書き込み系もパブリックに置くのは意図的なトレードオフであり、外部公開時は `withCurrentUser` の後ろに戻して全ハンドラを認証必須にする。
