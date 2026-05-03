@@ -319,13 +319,16 @@ out center;
 
 ## データ受け渡し（Web ⇄ iOS）
 
-**方式: クラウドアカウント（Apple Sign In）**
+**方式: シングルユーザー・セッショントークン**
 
-- 認証: Apple Sign In（Web 版は Sign in with Apple JS、iOS 版は ASAuthorizationAppleIDProvider）
-- バックエンド: Bun + Hono + SQLite、Fly.io（nrt）
+個人利用・Tailnet 内限定運用のためマルチユーザー認証は不採用。Apple Sign In や OAuth は使わず、Web/iOS の両クライアントは「ログイン」ボタン一発で seeded 単一ユーザー（`users.id = 1`）のセッショントークンを取得する。トークンはクライアント側で永続化し、以降の API 呼び出しに `Authorization: Bearer ...` で付加する。
+
+- 認証エンドポイント: `POST /api/auth/login`（rindo-api）
+- バックエンド: Bun + Hono + SQLite、Mac mini @ 自宅 + Tailscale serve
 - データフロー:
   - Web で計画したルート → バックエンド保存 → iOS が取り込み
   - iOS で記録した走行ログ → バックエンドアップロード → Web で履歴閲覧
+- 公開運用（AppStore / 不特定多数）は計画にないため、Apple Sign In は実装しない。将来必要になった場合は Apple Sign In または OAuth プロバイダを別途追加する
 
 ## 実装優先順位（Web 版）
 
@@ -348,19 +351,21 @@ out center;
 
 ### Phase 2-B（バックエンド初期化と認証統合）
 
-12. **Bun + Hono + SQLite + Apple Sign In バックエンド構築**
+12. **Bun + Hono + SQLite バックエンド構築**（シングルユーザー・セッショントークン）
 13. **ルート保存・命名・編集・削除**
 14. **サイクリングロード CRUD UI**
 15. **地点登録（自宅・職場・お気に入り）**
 16. **ルート共有（短縮 URL）**
 
-### Phase 2-C（iOS 開発と並行・iOS データ受信後）
+### Phase 2-C（クライアント側の機能拡充）
 
-17. **走行履歴グラフ**（月間距離・累積カロリー・頻出ルート）
+17. **ルート名ラベル**（複数箇所表示）
+18. **路線クリックで詳細ポップアップ**（距離・標高・スパークライン・ルート取り込み）
+19. **プロフィール登録 + 消費カロリー算出**（MET ベース）
+20. **走行履歴グラフ**（月間距離・累積カロリー・頻出ルート — iOS データ受信後）
 
 ### iOS 版開発開始時に着手（Web 版にも影響あるもの）
 
-- 認証フロー全体の検証（Web/iOS 両方からのログイン整合性）
 - バックエンドの走行ログ受信エンドポイント仕様確定
 - ルート取り込み URL スキーム or Universal Link 設計
 

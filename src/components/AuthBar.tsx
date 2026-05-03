@@ -3,15 +3,15 @@ import { useAuth } from '../contexts/AuthContext'
 import './AuthBar.css'
 
 export function AuthBar() {
-  const { state, user, devLogin, logout } = useAuth()
+  const { state, user, login, logout } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleDevLogin() {
+  async function handleLogin() {
     setBusy(true)
     setError(null)
     try {
-      await devLogin()
+      await login()
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -60,11 +60,10 @@ export function AuthBar() {
       <button
         type="button"
         className="auth-bar-button auth-bar-button-primary"
-        onClick={handleDevLogin}
+        onClick={handleLogin}
         disabled={busy}
-        title="開発用：シングルユーザーでログイン"
       >
-        Dev ログイン
+        ログイン
       </button>
       {error && <span className="auth-bar-error">{error}</span>}
     </span>

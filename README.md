@@ -22,7 +22,7 @@
 - 近隣施設マーカー（コンビニ・駐車場、Overpass API）
 - GPX エクスポート（Garmin / Wahoo にインポート可能）
 - 札幌の天気予報（気象庁 API）
-- 認証（dev login + Apple Sign In バックエンド準備済）
+- 認証（シングルユーザー・セッショントークン方式）
 - ルート保存・命名・編集・削除
 - 地点登録（自宅・職場・お気に入り）+ 地図上アイコン表示
 - 出典・ライセンスダイアログ
@@ -61,7 +61,7 @@
   - CyclOSM の見た目を復活させたい場合は [Stadia Maps](https://stadiamaps.com/) の無料 API キーを取得して切替可能
 - **バックエンド**: [github.com/osprey74/rindo-api](https://github.com/osprey74/rindo-api)（Bun + Hono + SQLite、自宅 Mac mini で常時稼働）
 - **ルーティング**: Valhalla（bicycle プロファイル、Docker、道央圏 OSM 切り出し）
-- **認証**: セッション方式（dev login + Apple Sign In 準備済）
+- **認証**: シングルユーザー・セッショントークン方式（個人利用・Tailnet 内限定運用前提）
 - **デプロイ**: 自宅 M1 Mac mini + Tailscale serve（Fly.io 相当の運用、月額電気代のみ）
 
 ## ローカル開発セットアップ

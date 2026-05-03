@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { devLogin as apiDevLogin, fetchMe, logout as apiLogout, type User } from '../lib/auth'
+import { login as apiLogin, fetchMe, logout as apiLogout, type User } from '../lib/auth'
 import { getStoredToken, setStoredToken } from '../lib/api-client'
 
 type AuthState =
@@ -10,7 +10,7 @@ type AuthState =
 type AuthContextValue = {
   state: AuthState
   user: User | null
-  devLogin: () => Promise<void>
+  login: () => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -41,8 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
   }, [])
 
-  async function devLogin() {
-    const user = await apiDevLogin()
+  async function login() {
+    const user = await apiLogin()
     if (user) setState({ status: 'authenticated', user })
   }
 
@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const user = state.status === 'authenticated' ? state.user : null
 
   return (
-    <AuthContext.Provider value={{ state, user, devLogin, logout }}>
+    <AuthContext.Provider value={{ state, user, login, logout }}>
       {children}
     </AuthContext.Provider>
   )
