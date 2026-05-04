@@ -217,6 +217,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
   const [elevationError, setElevationError] = useState<string | null>(null)
   const [facilities, setFacilities] = useState<Facility[]>([])
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
+  const [saveDialogInitialName, setSaveDialogInitialName] = useState<string | undefined>(undefined)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   const fetchTokenRef = useRef(0)
@@ -236,6 +237,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
     coords: [number, number][]
     lengthM: number
     profile: ElevationProfile | null
+    name: string
   } | null>(null)
 
   useEffect(() => {
@@ -301,6 +303,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
     const importCuratedRoute = () => {
       const data = curatedPopupDataRef.current
       if (!data || data.coords.length < 2) return
+      setSaveDialogInitialName(data.name)
       const { coords, lengthM, profile } = data
 
       const distance_km = profile?.total_distance_km ?? lengthM / 1000
@@ -369,7 +372,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
       const lengthM = geometryLengthMeters(geometry)
       const coords = geometryToCoords(geometry)
 
-      curatedPopupDataRef.current = { coords, lengthM, profile: null }
+      curatedPopupDataRef.current = { coords, lengthM, profile: null, name: props.name }
 
       if (coords.length >= 2) {
         addCuratedEndpoint(coords[0], 'start')
@@ -406,7 +409,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
         .then((profile) => {
           if (token !== curatedPopupTokenRef.current) return
           if (curatedPopupRef.current !== popup) return
-          curatedPopupDataRef.current = { coords, lengthM, profile }
+          curatedPopupDataRef.current = { coords, lengthM, profile, name: props.name }
           popup.setHTML(popupFilledHTML(props, profile))
         })
         .catch((err: unknown) => {
@@ -795,6 +798,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
             className="map-status-save"
             onClick={() => {
               setSaveError(null)
+              setSaveDialogInitialName(undefined)
               setSaveDialogOpen(true)
             }}
             title="現在のルートを名前付きで保存"
@@ -832,6 +836,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
       <SaveRouteDialog
         open={saveDialogOpen}
         mode="create"
+        initialName={saveDialogInitialName}
         onSubmit={handleSaveRoute}
         onClose={() => setSaveDialogOpen(false)}
       />
