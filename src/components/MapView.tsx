@@ -20,8 +20,6 @@ import {
   popupErrorHTML,
 } from '../lib/curated-road-stats'
 import cyclingRoadsUrl from '../../sapporo-cyclingroad.corrected.geojson?url'
-import osmCyclewaysUrl from '../../sapporo-osm-cycleways.geojson?url'
-import osmBicycleRoutesUrl from '../../dosou-osm-bicycle-routes.geojson?url'
 import './MapView.css'
 
 export type MapViewHandle = {
@@ -41,8 +39,6 @@ type CyclingRoadProperties = {
 type Waypoint = LonLat & { id: string }
 
 const CURATED_COLOR = '#E65C00'
-const OSM_CYCLEWAY_COLOR = '#1D9E75'
-const OSM_ROUTE_COLOR = '#3C7B91'
 const ROUTE_COLOR = '#2563EB'
 const ROUTE_OUTLINE_COLOR = '#FFFFFF'
 const START_MARKER_COLOR = '#22C55E'
@@ -52,34 +48,8 @@ const VIA_MARKER_COLOR = '#8B5CF6'
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 
 function setupLayers(map: maplibregl.Map) {
-  map.addSource('osm-cycleways', { type: 'geojson', data: EMPTY_FC })
-  map.addSource('osm-bicycle-routes', { type: 'geojson', data: EMPTY_FC })
   map.addSource('cycling-roads', { type: 'geojson', data: EMPTY_FC })
   map.addSource('route', { type: 'geojson', data: EMPTY_FC })
-
-  map.addLayer({
-    id: 'osm-cycleways',
-    type: 'line',
-    source: 'osm-cycleways',
-    layout: { 'line-join': 'round', 'line-cap': 'round' },
-    paint: {
-      'line-color': OSM_CYCLEWAY_COLOR,
-      'line-width': 3,
-      'line-opacity': 0.85,
-    },
-  })
-
-  map.addLayer({
-    id: 'osm-bicycle-routes',
-    type: 'line',
-    source: 'osm-bicycle-routes',
-    layout: { 'line-join': 'round', 'line-cap': 'round' },
-    paint: {
-      'line-color': OSM_ROUTE_COLOR,
-      'line-width': 4,
-      'line-opacity': 0.9,
-    },
-  })
 
   map.addLayer({
     id: 'cycling-roads-exclusive',
@@ -295,26 +265,6 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
 
     map.on('load', () => {
       setupLayers(map)
-
-      fetchGeoJson(osmCyclewaysUrl, 'OSM cycleways')
-        .then((data) => {
-          if (mapRef.current !== map) return
-          const source = map.getSource('osm-cycleways') as maplibregl.GeoJSONSource | undefined
-          source?.setData(data)
-        })
-        .catch((err: unknown) => {
-          console.error(err)
-        })
-
-      fetchGeoJson(osmBicycleRoutesUrl, 'OSM bicycle route relations')
-        .then((data) => {
-          if (mapRef.current !== map) return
-          const source = map.getSource('osm-bicycle-routes') as maplibregl.GeoJSONSource | undefined
-          source?.setData(data)
-        })
-        .catch((err: unknown) => {
-          console.error(err)
-        })
 
       fetchGeoJson(cyclingRoadsUrl, 'curated cycling roads')
         .then(normalizeCuratedRoadTypes)
