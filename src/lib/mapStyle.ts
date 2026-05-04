@@ -5,9 +5,8 @@ import type { StyleSpecification } from 'maplibre-gl'
 // z>=17, causing severe overzoom artifacts when zoomed in.
 //
 // Trade-off: the base map loses cycling-specific styling (orange highlight on
-// dedicated cycle paths). This is acceptable because the app overlays its own
-// Layer 1 (OSM `highway=cycleway`, green) on top, so cycling infrastructure
-// remains visible.
+// dedicated cycle paths). This is acceptable because the app overlays curated
+// cycling roads (16 routes) on top, so cycling infrastructure remains visible.
 //
 // To restore the CyclOSM visual style, sign up for a Stadia Maps account
 // (free tier covers personal use) and switch to:

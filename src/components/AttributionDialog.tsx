@@ -50,8 +50,7 @@ export function AttributionDialog({ open, onClose }: Props) {
               <strong>© OpenStreetMap contributors</strong>{' '}
               <span className="attrib-license">(ODbL)</span>
               <p>
-                ベースマップ、自転車道（OSM <code>highway=cycleway</code>）、自転車ルート（OSM{' '}
-                <code>route=bicycle</code>）、近隣施設（コンビニ・駐車場）、Valhalla ルーティングのすべての元データ。
+                ベースマップ、近隣施設（コンビニ・駐車場）、Valhalla ルーティングのすべての元データ。
               </p>
               <p>
                 <a
@@ -70,7 +69,7 @@ export function AttributionDialog({ open, onClose }: Props) {
           <h3>サイクリングロードデータ</h3>
           <ul>
             <li>
-              <strong>札幌市公式 13 路線</strong>
+              <strong>札幌市サイクリングロード（16 路線）</strong>
               <p>
                 出典：<strong>札幌市建設局</strong>「さっぽろサイクリングマップ」（PDF）を QGIS でデジタイズし、Valhalla map matching で OSM にスナッピング、QGIS で手動補正済み。
               </p>
@@ -88,8 +87,7 @@ export function AttributionDialog({ open, onClose }: Props) {
               <strong>北海道大規模自転車道</strong>{' '}
               <span className="attrib-license">(CC-BY)</span>
               <p>
-                <strong>北海道建設部土木局提供</strong>。本アプリでは OSM の{' '}
-                <code>route=bicycle</code> リレーション経由で参照（札幌恵庭線・滝野上野幌線等）。
+                <strong>北海道建設部土木局提供</strong>（札幌恵庭線・滝野上野幌線等）。
               </p>
               <p>
                 <a
