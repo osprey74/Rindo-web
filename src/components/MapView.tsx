@@ -438,6 +438,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
       if (hits.length > 0) return
       const wp: Waypoint = { lon: e.lngLat.lng, lat: e.lngLat.lat, id: newWaypointId() }
       setWaypoints((prev) => [...prev, wp])
+      setSaveDialogInitialName(undefined)
       setError(null)
     })
 
@@ -798,7 +799,6 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
             className="map-status-save"
             onClick={() => {
               setSaveError(null)
-              setSaveDialogInitialName(undefined)
               setSaveDialogOpen(true)
             }}
             title="現在のルートを名前付きで保存"
