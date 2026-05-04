@@ -8,15 +8,18 @@
 
 - **対象エリア**: 道央圏（北海道）
 - **想定利用シーン**: ルート計画・勾配確認・GPX エクスポート（実走行ナビは将来 iOS 版で対応）
-- **役割分担**: Web 版はルート計画と管理、iOS 版は実走行ナビ・走行ログ記録（HANDOFF [Web 版と iOS 版の役割分担](./HANDOFF_cycling-nav.md) 参照）
-- **iOS 版**: 後続展開予定（バンドル ID `com.osprey74.rindo`）
+- **役割分担**: Web 版はルート計画・管理・サイクリングロード表示、iOS 版は実走行ナビ・走行ログ記録（HANDOFF [Web 版と iOS 版の役割分担](./HANDOFF_cycling-nav.md) 参照）
+- **iOS 版**: 開発済み（バンドル ID `com.osprey74.rindo`、Phase iOS-5 まで実装完了）
 
 詳細な技術仕様・データソース・実装フェーズは [HANDOFF_cycling-nav.md](./HANDOFF_cycling-nav.md) を参照してください。
 
 ## 実装済み機能
 
-- 札幌市公式 13 サイクリングロード表示（Layer 3、QGIS 補正済 + Valhalla map matching）
-- OSM cycleway 表示（Layer 1）/ OSM 自転車ルートリレーション表示（Layer 2）
+- サイクリングロード表示（16 路線、QGIS 補正済 + Valhalla map matching、Web 専用オーバーレイ）
+  - 札幌市サイクリングロード 11 路線 + 追加 3 路線（丘珠空港緑地・屯田防風林・モエレ沼公園一周）
+  - 北海道大規模自転車道 2 路線（`large_scale` フラグで識別）
+- 路線クリックで詳細ポップアップ（距離・標高スパークライン・「ルートを取り込む」ボタン）
+  - ルート取り込み時、保存ダイアログにサイクリングロード名を自動入力
 - bicycle ルーティング（Valhalla）+ クリックで複数経由地対応
 - 標高プロファイル表示（OpenTopoData SRTM 30m + 線形補間）
 - 近隣施設マーカー（コンビニ・駐車場、Overpass API）
@@ -27,6 +30,8 @@
 - 地点登録（自宅・職場・お気に入り）+ 地図上アイコン表示
 - 出典・ライセンスダイアログ
 - モバイル UI 対応（iPhone でフッタ位置の天気カード、コンパクトヘッダー）
+
+> **Note**: Layer 1（OSM `highway=cycleway`）と Layer 2（OSM `route=bicycle` リレーション）は 2026-05 に全プラットフォームから削除済み。サイクリングロード表示は上記のキュレーション済みデータ（旧 Layer 3）のみ。iOS 版にはサイクリングロードオーバーレイ自体を表示しない設計に変更済み（Web 専用機能）。
 
 ## アーキテクチャ
 
@@ -43,6 +48,7 @@
    │     ├─ /api/locations/*   → rindo-api（要認証）
    │     ├─ /api/cycling-roads → rindo-api（公開、Tailnet 限定運用のため CRUD すべて認証なし）
    │     ├─ /api/profile       → rindo-api（要認証）
+   │     ├─ /api/rides/*       → rindo-api（要認証、走行ログ）
    │     ├─ /api/health        → rindo-api
    │     ├─ /api/valhalla/*    → Valhalla
    │     ├─ /api/elevation     → OpenTopoData（リバプロ）
@@ -60,7 +66,7 @@
 - **地図ライブラリ**: MapLibre GL JS
 - **タイル**: OpenStreetMap 標準（`tile.openstreetmap.org`、max zoom 19）
   - 当初 CyclOSM を採用したが `openstreetmap.fr` の提供サーバが zoom 17 以上で応答しないため OSM 標準に切替（2026-05-02）
-  - 自転車道情報は Web 側オーバーレイ Layer 1（緑、OSM `highway=cycleway`）で確保
+  - 自転車道情報はキュレーション済みサイクリングロード（16 路線）のオーバーレイで表示（Web 専用）
   - CyclOSM の見た目を復活させたい場合は [Stadia Maps](https://stadiamaps.com/) の無料 API キーを取得して切替可能
 - **バックエンド**: [github.com/osprey74/rindo-api](https://github.com/osprey74/rindo-api)（Bun + Hono + SQLite、自宅 Mac mini で常時稼働）
 - **ルーティング**: Valhalla（bicycle プロファイル、Docker、道央圏 OSM 切り出し）
@@ -94,8 +100,8 @@ npm run dev
 | `bun run scripts/prepare-corrected.ts` | matched 版から内部メタデータを除去 → QGIS 編集用 `sapporo-cyclingroad.corrected.geojson` 生成 |
 | `bun run scripts/dedup-vertices.ts` | 重複頂点除去（QGIS 編集後の整理） |
 | `bun run scripts/tag-large-scale.ts` | corrected.geojson に `large_scale` フラグ付与（北海道大規模自転車道該当路線） |
-| `bun run scripts/fetch-osm-cycleways.ts` | Overpass で `highway=cycleway` を取得 → `sapporo-osm-cycleways.geojson` |
-| `bun run scripts/fetch-osm-bicycle-routes.ts` | Overpass で `route=bicycle` リレーションを取得 → `dosou-osm-bicycle-routes.geojson` |
+| `bun run scripts/fetch-osm-cycleways.ts` | Overpass で `highway=cycleway` を取得 → `sapporo-osm-cycleways.geojson`（参考用、アプリでは未使用） |
+| `bun run scripts/fetch-osm-bicycle-routes.ts` | Overpass で `route=bicycle` リレーションを取得 → `dosou-osm-bicycle-routes.geojson`（参考用、アプリでは未使用） |
 
 ## サイクリングロードデータと QGIS 編集ワークフロー
 
@@ -107,7 +113,7 @@ npm run dev
 | `sapporo-cyclingroad.matched.geojson` | Valhalla で OSM にスナップした補正版（信頼スコア・元ジオメトリのバックアップ含む） | 補正の中間生成物・デバッグ用 |
 | **`sapporo-cyclingroad.corrected.geojson`** | matched 版から内部メタデータを取り除いたクリーン版 | **アプリが参照する正本。QGIS で手動補正可能** |
 
-OSM 由来データ:
+OSM 由来データ（参考用、アプリでは未使用。Layer 1/2 は 2026-05 に削除済み）:
 
 | ファイル | 内容 |
 |---|---|

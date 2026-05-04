@@ -35,7 +35,7 @@ OpenStreetMap（OSM）ベースのルーティングエンジン（Valhalla）�
 - **地図ライブラリ**: MapLibre GL JS
 - **タイルレイヤー**: OpenStreetMap 標準（`https://tile.openstreetmap.org/{z}/{x}/{y}.png`、max zoom 19）
   - 当初 CyclOSM（`tile-cyclosm.openstreetmap.fr`）を採用したが、zoom 17 以上で応答が返らずオーバーズーム時に著しく劣化したため 2026-05-02 に OSM 標準へ切替
-  - 自転車道情報は Web 側オーバーレイ（Layer 1: 緑、OSM `highway=cycleway`）で確保
+  - 自転車道情報はキュレーション済みサイクリングロード（16 路線）のオーバーレイで表示（Web 専用）
   - CyclOSM の見た目を復活させたい場合は [Stadia Maps](https://stadiamaps.com/) の無料 API キーを取得して切替可能
 
 ### バックエンド
@@ -66,35 +66,31 @@ OpenStreetMap（OSM）ベースのルーティングエンジン（Valhalla）�
 
 ## データソース
 
-サイクリングロード関連レイヤーは 3 層構成。Layer 1/2 は固定的なコンテンツのため、Web 版・iOS 版とも **ビルド時にバンドルされた静的 GeoJSON** を読み込む（ランタイムで Overpass を叩かない）。Layer 3 のみ rindo-api 経由で動的に取得する。
+サイクリングロードの表示は **キュレーション済みデータのみ（旧 Layer 3）** に一本化された。旧 Layer 1（OSM `highway=cycleway`）と旧 Layer 2（OSM `route=bicycle` リレーション）は 2026-05 に全プラットフォームから削除済み。
 
-### Layer 1: OSM `highway=cycleway`（緑、線幅 3）
-- OSM の `highway=cycleway` タグが付与されたウェイ
-- 取得方法: `Rindo-web/scripts/fetch-osm-cycleways.ts` で Overpass API から事前取得 → `Rindo-web/sapporo-osm-cycleways.geojson` として保存
-- 配信方法: Vite が静的 GeoJSON として import（[Rindo-web/src/components/MapView.tsx](src/components/MapView.tsx) の `osmCyclewaysUrl`）
-- データ更新頻度: 数か月に 1 回スクリプトを再実行する想定（個人利用のため OSM のリアルタイム性は重視しない）
-- ライセンス: ODbL（表示時に © OpenStreetMap contributors 必須）
+また、サイクリングロードオーバーレイは **Web 版専用**。iOS 版はベースマップ＋保存済みルート（ナビゲーション用）のみを表示する設計に変更された。
 
-### Layer 2: OSM `route=bicycle` リレーション（青、線幅 4）
-- OSM の `type=route, route=bicycle` リレーション（道央圏）
-- 取得方法: `Rindo-web/scripts/fetch-osm-bicycle-routes.ts` で Overpass API から事前取得 → `Rindo-web/dosou-osm-bicycle-routes.geojson` として保存
-- 配信方法: Layer 1 と同じく Vite の静的 import
-- ライセンス: ODbL（表示時に © OpenStreetMap contributors 必須）
-- ⚠️ 旧仕様では「北海道大規模自転車道（北海道庁）」を Layer 2 としていたが、現在は Layer 3 に統合済み（後述の `large_scale` フラグで識別）
+### ~~Layer 1: OSM `highway=cycleway`~~ — 削除済み
+### ~~Layer 2: OSM `route=bicycle` リレーション~~ — 削除済み
 
-### Layer 3: 独自登録 DB（SQLite、オレンジ）
-- 札幌市公式 13 サイクリングロード（QGIS デジタイズ + Valhalla map matching 補正）
-  - さっぽろサイクリングマップ（PDF）を QGIS でデジタイズした GeoJSON
+> Layer 1/2 は OSM データの品質・粒度にばらつきがあり、キュレーション済みデータとの重複表示が煩雑だったため削除。スクリプト（`scripts/fetch-osm-cycleways.ts`、`scripts/fetch-osm-bicycle-routes.ts`）と GeoJSON ファイル（`sapporo-osm-cycleways.geojson`、`dosou-osm-bicycle-routes.geojson`）は参考用にリポジトリに残してある。
+
+### サイクリングロード（Web 専用、オレンジ）
+- **16 路線**（札幌市サイクリングロード 11 路線 + 追加 3 路線 + 北海道大規模自転車道 2 路線）
+  - 札幌市サイクリングロード: さっぽろサイクリングマップ（PDF）を QGIS でデジタイズ + Valhalla map matching 補正
+  - 追加 3 路線（fid 14〜16）: 丘珠空港緑地、屯田防風林、モエレ沼公園一周
+  - 北海道大規模自転車道（`large_scale=1`）: 真駒内茨戸東雁来自転車道路、滝野上野幌自転車道路
   - 参照 PDF: https://www.city.sapporo.jp/kensetsu/dokan/jitensha/cyclingmap.html
   - データソース: `Rindo-web/sapporo-cyclingroad.corrected.geojson`
-- 北海道大規模自転車道（北海道庁・CC-BY）も同テーブル内に `large_scale=true` フラグ付きで格納
+- 北海道大規模自転車道（北海道庁・CC-BY）も同テーブル内に `large_scale=1` フラグ付きで格納
   - 入手先: https://www.pref.hokkaido.lg.jp/kn/ddr/94728.html
   - タグ付与スクリプト: `Rindo-web/scripts/tag-large-scale.ts`
 - 配信方法: rindo-api の `GET /api/cycling-roads` から GeoJSON FeatureCollection で取得
-- 属性: `id`, `name`, `ward`, `road_type`（`exclusive` / `shared`）, `source`, `notes`, `large_scale`（boolean）
+- 属性: `id`, `name`, `ward`, `road_type`（`exclusive` / `shared`）, `source`, `notes`, `large_scale`（integer: `0` or `1`）
 - 描画スタイル:
   - `road_type='exclusive'`: オレンジ実線（線幅 4）
   - `road_type='shared'`: オレンジ破線（線幅 2、`line-dasharray: [4, 2]`）
+- 路線クリックで詳細ポップアップ（距離・標高スパークライン）→「ルートを取り込む」ボタンで保存ダイアログにサイクリングロード名を自動入力
 - ⚠️ 札幌市からの GIS データ公式提供はなし。PDF デジタイズのため誤差あり（数十 m 程度）
 - ライセンス: 札幌市建設局（要出典明示）/ 北海道建設部土木局提供（CC-BY）
 
@@ -129,8 +125,8 @@ CREATE TABLE IF NOT EXISTS cycling_roads (
 ### `large_scale` フラグ
 | 値 | 意味 |
 |----|------|
-| `0` | 札幌市公式 13 サイクリングロード（既定値） |
-| `1` | 北海道大規模自転車道（北海道庁オープンデータ・CC-BY） |
+| `0` | 札幌市サイクリングロード（14 路線、既定値） |
+| `1` | 北海道大規模自転車道（2 路線、北海道庁オープンデータ・CC-BY） |
 
 ---
 
@@ -229,6 +225,10 @@ PUT  /api/locations/:id                   地点更新
 DELETE /api/locations/:id                 地点削除
 GET  /api/profile                         プロフィール取得
 PUT  /api/profile                         プロフィール更新
+GET  /api/rides                           走行ログ一覧（トラックデータなし）
+GET  /api/rides/:id                       走行ログ詳細（GPSトラック付き）
+POST /api/rides                           走行ログ作成（iOS からのアップロード）
+DELETE /api/rides/:id                     走行ログ削除
 ```
 
 ### Caddy 経由のリバースプロキシ（rindo-api を経由しない）
@@ -248,33 +248,25 @@ GET  /api/weather/{areaCode}              気象庁 API へ
 
 ---
 
-## 地図レイヤー表示仕様（MapLibre GL JS）
+## 地図レイヤー表示仕様（MapLibre GL JS — Web 専用）
 
-実装は [Rindo-web/src/components/MapView.tsx](src/components/MapView.tsx) の `setupLayers` 関数。iOS 版も同じ色・幅で描画して表示一貫性を確保する。
+実装は [Rindo-web/src/components/MapView.tsx](src/components/MapView.tsx) の `setupLayers` 関数。**サイクリングロードオーバーレイは Web 版のみ**。iOS 版はベースマップ＋保存済みルート表示に特化し、サイクリングロードのオーバーレイは表示しない。
+
+> ~~Layer 1（緑、OSM `highway=cycleway`）と Layer 2（青、OSM `route=bicycle`）は 2026-05 に削除済み。~~
 
 ```typescript
-// Layer 1: OSM `highway=cycleway`（緑）
-'line-color': '#1D9E75'  // OSM_CYCLEWAY_COLOR
-'line-width': 3
-'line-opacity': 0.85
-
-// Layer 2: OSM `route=bicycle` リレーション（青）
-'line-color': '#3C7B91'  // OSM_ROUTE_COLOR
-'line-width': 4
-'line-opacity': 0.9
-
-// Layer 3: 独自登録・専用道（オレンジ実線）
+// サイクリングロード・専用道（オレンジ実線）
 road_type === 'exclusive'
 'line-color': '#E65C00'  // CURATED_COLOR
 'line-width': 4
 
-// Layer 3: 独自登録・共用区間（オレンジ破線）
+// サイクリングロード・共用区間（オレンジ破線）
 road_type === 'shared'
 'line-color': '#E65C00'  // CURATED_COLOR
 'line-width': 2
 'line-dasharray': [4, 2]
 
-// Layer 3: 路線名ラベル（minzoom 10、symbol-spacing 320）
+// 路線名ラベル（minzoom 10、symbol-spacing 320）
 text-color: '#5C2C00'
 text-halo-color: 'rgba(255, 255, 255, 0.95)'
 ```
@@ -357,11 +349,11 @@ out center;
 
 ## Web 版と iOS 版の役割分担
 
-| 役割 | Web 版（このリポジトリ） | iOS 版（rindo-ios・将来開発） |
+| 役割 | Web 版（このリポジトリ） | iOS 版（rindo-ios） |
 |---|---|---|
 | 主用途 | **ルート計画・データ管理・履歴閲覧** | **実走行ナビゲーション・走行ログ記録** |
 | ベースマップ表示 | ✅ | ✅ |
-| サイクリングロード表示（Layer 1/2/3） | ✅ | ✅ |
+| サイクリングロード表示（16 路線） | ✅ Web 専用 | — 削除済み（ベースマップ＋保存ルートのみ） |
 | ルート検索（Valhalla） | ✅ | ✅（同 API 共有） |
 | サイクリングロード CRUD | ✅ | — |
 | QGIS データ補正パイプライン | ✅ | — |
@@ -399,7 +391,7 @@ out center;
 - バックエンド: Bun + Hono + SQLite、自宅 M2 Mac mini + Tailscale serve（`https://home-mac-mini.taila6ea.ts.net`）
 - データフロー:
   - Web で計画したルート → バックエンド保存 → iOS が取り込み
-  - iOS で記録した走行ログ → バックエンドアップロード → Web で履歴閲覧（走行ログ用 `POST /api/rides` は未実装。iOS Phase 3 着手時に rindo-api 側で `rides` テーブル＋ハンドラを追加実装する）
+  - iOS で記録した走行ログ → `POST /api/rides` でバックエンドアップロード → Web で履歴閲覧（rindo-api 実装済み、`migrations/004_rides.sql`）
 - 公開運用（AppStore / 不特定多数）は計画にないため、Apple Sign In は実装しない。`users.apple_user_id` カラムは将来拡張用に残してあるが現状は `'local-user'` 固定値が入っているのみ
 
 ## 実装優先順位（Web 版）
@@ -413,7 +405,7 @@ out center;
 
 ### Phase 2-A（バックエンド不要・フロントエンドのみで完結）✅ 完了
 
-5. **Layer 1（OSM `highway=cycleway`）と Layer 2（OSM `route=bicycle` リレーション）の重ね表示**（静的 GeoJSON バンドル）
+5. ~~**Layer 1（OSM `highway=cycleway`）と Layer 2（OSM `route=bicycle` リレーション）の重ね表示**~~ → 2026-05 に削除済み
 6. **複数ウェイポイント対応**
 7. **勾配グラフ（OpenTopoData 連携・事前確認版）**
 8. **近隣施設表示**（コンビニ、駐車場 — Overpass）
@@ -438,7 +430,7 @@ out center;
 
 ### iOS 版開発開始時に着手（Web 版にも影響あるもの）
 
-- バックエンドの走行ログ受信エンドポイント仕様確定
+- ~~バックエンドの走行ログ受信エンドポイント仕様確定~~ → 実装済み（`/api/rides`、`migrations/004_rides.sql`）
 - ルート取り込み URL スキーム or Universal Link 設計
 
 ---
@@ -448,10 +440,8 @@ out center;
 | データ | ライセンス | 表示必要テキスト |
 |--------|-----------|----------------|
 | OSM 標準タイル | ODbL | © OpenStreetMap contributors |
-| OSM `highway=cycleway`（Layer 1） | ODbL | © OpenStreetMap contributors |
-| OSM `route=bicycle` リレーション（Layer 2） | ODbL | © OpenStreetMap contributors |
-| 北海道大規模自転車道（Layer 3 内 `large_scale=true`） | CC-BY | 北海道建設部土木局提供 |
-| さっぽろサイクリングマップ（Layer 3 内 `large_scale=false`） | 要確認 | 出典：札幌市建設局 |
+| 北海道大規模自転車道（`large_scale=1`） | CC-BY | 北海道建設部土木局提供 |
+| さっぽろサイクリングマップ（`large_scale=0`） | 要確認 | 出典：札幌市建設局 |
 | OpenTopoData / NASA SRTM 30m | ODbL / public domain | NASA SRTM 30m via OpenTopoData |
 | Valhalla | BSD-3-Clause | Routing by Valhalla |
 | 気象庁 API | — | 気象庁 |
@@ -472,7 +462,7 @@ out center;
 起動 → 地図画面（ログイン不要）
  │
  ├─ スタンドアロン機能（バックエンド不要）
- │   ├─ 地図表示 + Layer 1/2（バンドル GeoJSON）
+ │   ├─ 地図表示（ベースマップのみ、サイクリングロードオーバーレイなし）
  │   ├─ GPX ファイルインポート（Files / Share Sheet）
  │   ├─ ライン追従ナビゲーション
  │   │   ├─ 進行方向矢印マーカー（CLLocation.course で回転）
@@ -484,13 +474,12 @@ out center;
  │   └─ 出典・ライセンス画面
  │
  └─ サーバ連携機能（設定画面からオプションでログイン）
-     ├─ Layer 3（サイクリングロード DB、/api/cycling-roads）
      ├─ Valhalla ターンバイターンナビ（/api/valhalla/route）
      ├─ ルート同期（/api/routes）
      ├─ 地点同期（/api/locations）
      ├─ 標高プロファイル（OpenTopoData /api/elevation）
      ├─ 天気予報（JMA /api/weather）
-     └─ 走行ログアップロード（/api/rides、未実装）
+     └─ 走行ログアップロード（/api/rides、実装済み）
 ```
 
 ### 配布方式
@@ -512,8 +501,7 @@ out center;
 - さっぽろサイクリングマップのデジタイズデータは Valhalla `/trace_attributes` での map matching（`Rindo-web/scripts/match-cycling-roads.ts`）＋ **QGIS での手動補正済み**。`sapporo-cyclingroad.corrected.geojson` が補正後の正本
 - Valhalla の bicycle プロファイルはサイクリングロード「優先」であり「限定」ではない。一般道への進入を完全に防ぐには API レイヤーでのポストフィルタリングが別途必要
 - macOS 15 Sequoia + bun の既知問題（SIGKILL）あり。esbuild バイナリの `/opt/homebrew/bin/` 配置でワークアラウンド済みのプロジェクトを参考にすること
-- iOS 版（Rindo for iOS）は将来対応予定。現時点は Web アプリのみ。Android は現時点で計画なし
-- iOS の走行ログアップロード用 `POST /api/rides` は rindo-api 未実装。iOS Phase 3 着手時に `rides` テーブル＋ハンドラを rindo-api に追加する
+- iOS 版（Rindo for iOS）は Phase iOS-5 まで実装完了（走行モード・リマインダー・オフラインマップ）。Android は現時点で計画なし
 
 ---
 
@@ -537,13 +525,13 @@ out center;
 
 #### ① Layer 定義を Web 実装に追従
 
-| | 旧仕様（マスター HANDOFF） | 新仕様（Web 実装） |
-|---|---|---|
-| Layer 1 | OSM `highway=cycleway` + `route=bicycle` リレーション（Overpass 実時間取得想定） | OSM `highway=cycleway` のみ（バンドル GeoJSON） |
-| Layer 2 | 北海道大規模自転車道（北海道庁 CC-BY） | OSM `route=bicycle` リレーション（バンドル GeoJSON） |
-| Layer 3 | 独自登録 DB（札幌市 13 路線のみ） | 独自登録 DB（札幌市 13 路線 + 北海道大規模自転車道、`large_scale` フラグで識別） |
+| | 旧仕様（マスター HANDOFF） | 2026-05-03 時点 | 2026-05-04 現在 |
+|---|---|---|---|
+| Layer 1 | OSM `highway=cycleway` + `route=bicycle`（Overpass 実時間取得想定） | OSM `highway=cycleway` のみ（バンドル GeoJSON） | **削除済み** |
+| Layer 2 | 北海道大規模自転車道（北海道庁 CC-BY） | OSM `route=bicycle` リレーション（バンドル GeoJSON） | **削除済み** |
+| Layer 3 | 独自登録 DB（札幌市 13 路線のみ） | 独自登録 DB（13 路線 + 大規模自転車道、`large_scale` フラグで識別） | **16 路線（Web 専用、iOS では表示しない）** |
 
-→ 北海道大規模自転車道は `cycling_roads` テーブルに `large_scale=true` で取り込み済み。`/api/cycling-roads` で Layer 2/3 が同居する形に変更。
+→ 2026-05-04: Layer 1/2 を全プラットフォームから削除。サイクリングロード表示は Web 専用のキュレーション済みデータ（16 路線）に一本化。iOS はベースマップ＋保存ルートのみ。
 
 #### ② iOS の運用前提を明文化
 
@@ -561,9 +549,9 @@ out center;
 
 → rindo-api/README.md からも Apple Sign In セットアップ手順（Apple Developer Portal の操作、`RINDO_APPLE_*` 環境変数、ngrok 等）を全削除。
 
-#### ④ Layer 1/2 はバンドル GeoJSON 方式で確定
+#### ④ ~~Layer 1/2 はバンドル GeoJSON 方式で確定~~ → Layer 1/2 削除
 
-Web/iOS とも、ユーザーが変更できない固定コンテンツのためランタイムで Overpass を叩かず、`scripts/fetch-osm-*.ts` で事前生成した GeoJSON をビルド時にバンドルする方針に統一。
+旧方針ではバンドル GeoJSON 方式で Layer 1/2 を配信していたが、2026-05 に全プラットフォームから削除。サイクリングロード表示はキュレーション済みデータ（旧 Layer 3、16 路線）のみで Web 専用。
 
 #### ⑤ デプロイ先を実態に修正
 
@@ -577,10 +565,45 @@ Web/iOS とも、ユーザーが変更できない固定コンテンツのため
 
 - `cycling_roads` テーブルのスキーマを実装に合わせ修正（`geometry` → `geometry_json`、`large_scale INTEGER` 列追加）
 - rindo-api のスキーマ一覧を `001_init.sql` / `002_sessions.sql` / `003_user_profile.sql` の 3 マイグレーションで提示
-- iOS の走行ログ用 `POST /api/rides` は **rindo-api 未実装** と明示。iOS Phase 3 着手時に `rides` テーブル＋ハンドラを新規追加する宿題として記録
+- ~~iOS の走行ログ用 `POST /api/rides` は rindo-api 未実装~~ → 2026-05 に rindo-api 実装済み（`migrations/004_rides.sql`、`handlers/rides.ts`）
 
 ### 2026-05-03（追補）— `/api/cycling-roads` のパブリック化反映
 
 rindo-api 側で `cyclingRoadsApp` を認証ミドルウェアの前にマウントする変更（`b91e774 Update index.ts`）が入ったため、本ファイルおよび iOS HANDOFF / 各 README の API 表を「`/api/cycling-roads` は GET/POST/PUT/DELETE すべて認証不要」に修正。
 
 **設計判断**: Rindo は所有者一人による占有使用で Tailnet 限定運用のため、認証・セキュリティは最低限のみとする方針を明文化。書き込み系もパブリックに置くのは意図的なトレードオフであり、外部公開時は `withCurrentUser` の後ろに戻して全ハンドラを認証必須にする。
+
+### 2026-05-04 — Layer 削除・iOS Phase iOS-5 完了・路線追加
+
+#### Layer 1/2 の全プラットフォーム削除
+
+OSM `highway=cycleway`（Layer 1）と OSM `route=bicycle`（Layer 2）を Web・iOS の両方から削除。キュレーション済みサイクリングロードとの重複が煩雑で、OSM データ品質のばらつきもありユーザー体験が向上しないと判断。
+
+#### サイクリングロードは Web 専用に変更
+
+iOS 版はベースマップ＋保存済みルート（ナビゲーション用）のみを表示する設計に変更。サイクリングロードオーバーレイ（旧 Layer 3）は Web 版でのみ表示。
+
+#### 新規路線追加（計 16 路線）
+
+- fid 14: 丘珠空港緑地（東区）
+- fid 15: 屯田防風林（北区）
+- fid 16: モエレ沼公園一周（東区）
+
+#### 区名修正
+
+- fid 4 澄川１号用水路自転車道路: 豊平区 → 南区
+- fid 12 札幌恵庭自転車道路: 清田区 → 白石区
+
+#### rindo-api: rides エンドポイント実装済み
+
+`POST /api/rides` を含む走行ログ CRUD が実装完了（`migrations/004_rides.sql`、`handlers/rides.ts`）。`large_scale` は `INTEGER` 型で返却（`0`/`1`）。
+
+#### Phase iOS-5 実装完了
+
+- 走行モード（通勤 / レジャー / トレーニング）
+- 休憩・補給リマインダー
+- オフラインマップ（MLNOfflineStorage）
+
+#### Web: ルート取り込み時のサイクリングロード名自動入力
+
+サイクリングロードの詳細ポップアップから「ルートを取り込む」ボタンを押すと、保存ダイアログにサイクリングロード名が自動入力される。
