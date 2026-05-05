@@ -39,6 +39,7 @@ type CyclingRoadProperties = {
 type Waypoint = LonLat & { id: string }
 
 const CURATED_COLOR = '#E65C00'
+const CURATED_LARGE_SCALE_COLOR = '#6A5ACD'
 const ROUTE_COLOR = '#2563EB'
 const ROUTE_OUTLINE_COLOR = '#FFFFFF'
 const START_MARKER_COLOR = '#22C55E'
@@ -55,7 +56,7 @@ function setupLayers(map: maplibregl.Map) {
     id: 'cycling-roads-exclusive',
     type: 'line',
     source: 'cycling-roads',
-    filter: ['==', ['get', 'road_type'], 'exclusive'],
+    filter: ['all', ['==', ['get', 'road_type'], 'exclusive'], ['!', ['coalesce', ['get', 'large_scale'], false]]],
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: {
       'line-color': CURATED_COLOR,
@@ -67,12 +68,25 @@ function setupLayers(map: maplibregl.Map) {
     id: 'cycling-roads-shared',
     type: 'line',
     source: 'cycling-roads',
-    filter: ['==', ['get', 'road_type'], 'shared'],
+    filter: ['all', ['==', ['get', 'road_type'], 'shared'], ['!', ['coalesce', ['get', 'large_scale'], false]]],
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: {
       'line-color': CURATED_COLOR,
       'line-width': 2,
       'line-dasharray': [4, 2],
+    },
+  })
+
+  // 北海道大規模自転車道 — 青紫で区別
+  map.addLayer({
+    id: 'cycling-roads-large-scale',
+    type: 'line',
+    source: 'cycling-roads',
+    filter: ['==', ['get', 'large_scale'], true],
+    layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: {
+      'line-color': CURATED_LARGE_SCALE_COLOR,
+      'line-width': 5,
     },
   })
 
@@ -93,11 +107,12 @@ function setupLayers(map: maplibregl.Map) {
       'text-rotation-alignment': 'map',
       'text-pitch-alignment': 'viewport',
       'text-keep-upright': true,
+      'text-allow-overlap': true,
     },
     paint: {
-      'text-color': '#5C2C00',
-      'text-halo-color': 'rgba(255, 255, 255, 0.95)',
-      'text-halo-width': 1.6,
+      'text-color': '#333333',
+      'text-halo-color': 'rgba(255, 255, 255, 0.5)',
+      'text-halo-width': 2,
     },
   })
 
@@ -420,7 +435,7 @@ export const MapView = forwardRef<MapViewHandle, Props>(function MapView({
         })
     }
 
-    const curatedLayers = ['cycling-roads-exclusive', 'cycling-roads-shared', 'cycling-roads-labels']
+    const curatedLayers = ['cycling-roads-exclusive', 'cycling-roads-shared', 'cycling-roads-large-scale', 'cycling-roads-labels']
     for (const layerId of curatedLayers) {
       map.on('click', layerId, showCuratedPopup)
       map.on('mouseenter', layerId, () => {
